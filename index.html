@@ -644,7 +644,7 @@ const ROLE_MAP = {
   admin:   { email: "rostampour@rostampour-system.local", label: "مدیر سامانه" },
   station: { email: "station@rostampour-system.local",    label: "مأمور قرائت" }
 };
-const GUEST_KEY = "rostampour-guest-2026"; // کلید ساده دسترسی مشاهده‌گر (فقط خواندنی)
+const GUEST_KEY = "1368"; // کلید ساده دسترسی مشاهده‌گر (فقط خواندنی)
 
 const GROUP_LABELS = {
   buy:"خرید آب", org:"مصرف سازمان", green:"مصرف فضای سبز",
@@ -706,7 +706,7 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
   errEl.textContent='';
   try{
     if(role==='guest'){
-      const key = document.getElementById('login-guestkey').value.trim();
+      const key = toEnDigits(document.getElementById('login-guestkey').value.trim());
       if(key !== GUEST_KEY){ errEl.textContent='کلید دسترسی نامعتبر است'; return; }
       await signInAnonymously(auth);
       currentRole='guest'; currentLabel='مشاهده‌گر';
