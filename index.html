@@ -7,6 +7,8 @@
 <link rel="icon" type="image/png" id="favicon">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
 /* ============ DESIGN TOKENS ============
    رنگ اصلی: آبی عمیق صنعتی + فیروزه‌ای آب + سفید یخی
@@ -445,13 +447,16 @@ tbody tr:hover{background:var(--ice-2);}
         <div class="panel">
           <div class="panel-head">
             <h3>لیست مشترکین</h3>
-            <button class="btn btn-brand" id="btn-add-consumer">＋ ثبت مشترک جدید</button>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-ghost" id="btn-export-consumers">📊 خروجی Excel</button>
+              <button class="btn btn-brand" id="btn-add-consumer">＋ ثبت مشترک جدید</button>
+            </div>
           </div>
           <div class="search-bar">
             <input type="text" id="consumer-search" placeholder="جستجو بر اساس نام یا کد اشتراک...">
             <select id="consumer-filter-group">
               <option value="">همه گروه‌ها</option>
-              <option value="buy">خرید آب</option>
+              <option value="buy">خرید آب (تولید/ورودی)</option>
               <option value="org">مصرف سازمان</option>
               <option value="green">مصرف فضای سبز</option>
               <option value="company">مصرف شرکت‌ها</option>
@@ -508,7 +513,10 @@ tbody tr:hover{background:var(--ice-2);}
         <div class="panel">
           <div class="panel-head">
             <h3>لیست قرائت‌های ثبت‌شده</h3>
-            <button class="btn btn-brand" id="btn-add-reading">＋ ثبت قرائت جدید</button>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-ghost" id="btn-export-readings">📊 خروجی Excel</button>
+              <button class="btn btn-brand" id="btn-add-reading">＋ ثبت قرائت جدید</button>
+            </div>
           </div>
           <div class="search-bar">
             <input type="text" id="reading-search" placeholder="جستجو بر اساس نام یا کد اشتراک...">
@@ -535,7 +543,10 @@ tbody tr:hover{background:var(--ice-2);}
           <div class="stat-card"><div class="lbl">تعداد صورتحساب‌ها</div><div class="val mono" id="fin-count">۰</div></div>
         </div>
         <div class="panel">
-          <div class="panel-head"><h3>صورتحساب‌ها</h3></div>
+          <div class="panel-head">
+            <h3>صورتحساب‌ها</h3>
+            <button class="btn btn-ghost" id="btn-export-bills">📊 خروجی Excel</button>
+          </div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>دوره</th><th>مصرف (م³)</th><th>مبلغ (تومان)</th><th>وضعیت پرداخت</th><th>عملیات</th></tr></thead>
@@ -546,21 +557,129 @@ tbody tr:hover{background:var(--ice-2);}
         </div>
       </section>
 
-      <!-- REPORTS (placeholder, admin only) -->
+      <!-- REPORTS -->
       <section class="page" data-page="reports">
         <div class="page-title">گزارشات</div>
         <div class="page-desc">گزارش‌های تحلیلی و مدیریتی سامانه</div>
-        <div class="panel"><div class="empty-state"><div class="ic">🚧</div>این بخش در فاز بعدی توسعه تکمیل می‌شود</div></div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>گزارش توازن تولید و فروش (پرت آب)</h3>
+          </div>
+          <div class="search-bar">
+            <select id="loss-month-select"></select>
+          </div>
+          <div class="grid-stats" style="grid-template-columns:repeat(3,1fr);">
+            <div class="stat-card"><div class="lbl">تولید / خرید آب (ورودی)</div><div class="val mono" id="loss-production">۰ <small>م³</small></div></div>
+            <div class="stat-card"><div class="lbl">مجموع فروش گروه‌ها (خروجی)</div><div class="val mono" id="loss-sales">۰ <small>م³</small></div></div>
+            <div class="stat-card"><div class="lbl">پرت آب / مابه‌تفاوت</div><div class="val mono" id="loss-diff">۰ <small>م³</small></div><div id="loss-percent-badge" style="margin-top:8px;"></div></div>
+          </div>
+          <div id="loss-warning" style="display:none; padding:14px 16px; border-radius:12px; background:rgba(214,69,69,.1); color:var(--danger); font-size:13px; margin-bottom:14px;"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>گروه مصرف</th><th>مجموع مصرف در این دوره (م³)</th><th>سهم از فروش کل</th></tr></thead>
+              <tbody id="loss-groups-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="loss-empty" style="display:none;"><div class="ic">💧</div>برای این دوره هنوز قرائتی ثبت نشده است</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>روند مصرف فروش در ۶ ماه اخیر</h3></div>
+          <canvas id="chart-monthly-trend" height="90"></canvas>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>مقایسه گروه‌های مصرف (دوره انتخاب‌شده در گزارش پرت آب)</h3></div>
+          <canvas id="chart-group-compare" height="90"></canvas>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>گزارش بدهکاران</h3>
+            <button class="btn btn-ghost btn-sm" id="btn-export-debtors">📊 خروجی Excel</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>دوره</th><th>مبلغ بدهی (تومان)</th></tr></thead>
+              <tbody id="debtors-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="debtors-empty" style="display:none;"><div class="ic">✅</div>هیچ بدهی ثبت‌نشده‌ای وجود ندارد</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>گزارش قرائت‌نشده‌ها و خرابی (ماه جاری)</h3></div>
+          <div class="page-desc" style="margin-bottom:10px;">مشترکینی که هنوز در این ماه قرائت نشده‌اند، یا وضعیت «تعطیل/خراب» ثبت شده است.</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>گروه</th><th>وضعیت</th></tr></thead>
+              <tbody id="unread-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="unread-empty" style="display:none;"><div class="ic">✅</div>همه مشترکین در این ماه قرائت شده‌اند</div>
+        </div>
       </section>
 
-      <!-- USERS (placeholder, admin only) -->
+      <!-- USERS -->
       <section class="page" data-page="users">
         <div class="page-title">کاربران</div>
         <div class="page-desc">مدیریت کاربران، نقش‌ها و سطوح دسترسی</div>
-        <div class="panel"><div class="empty-state"><div class="ic">🚧</div>این بخش در فاز بعدی توسعه تکمیل می‌شود</div></div>
+
+        <div class="grid-stats" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card"><div class="lbl">مدیر سامانه</div><div class="val" style="font-size:15px;">rostampour</div><div class="trend up">دسترسی کامل به همه بخش‌ها</div></div>
+          <div class="stat-card"><div class="lbl">مأمور قرائت</div><div class="val" style="font-size:15px;">station</div><div class="trend up">دسترسی طبق تنظیمات زیر</div></div>
+          <div class="stat-card"><div class="lbl">مشاهده‌گر</div><div class="val" style="font-size:15px;">کلید دسترسی</div><div class="trend up">فقط مشاهده داشبورد و مشترکین</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>سطوح دسترسی مأمور قرائت</h3></div>
+          <div class="page-desc" style="margin-bottom:16px;">با تیک زدن هر گزینه، دسترسی مربوطه برای حساب مأمور قرائت («station») فعال می‌شود. ثبت/ویرایش/حذف مشترکین و تعرفه‌ها همیشه مختص مدیر سامانه باقی می‌ماند.</div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="perm-viewReports" style="width:auto;">
+              <span>مشاهده بخش «گزارشات» (گزارش پرت آب و توازن تولید/فروش)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="perm-viewFinance" style="width:auto;">
+              <span>مشاهده بخش «مالی» (فقط مشاهده صورتحساب‌ها، بدون امکان ثبت پرداخت)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="perm-deleteOwnReadings" style="width:auto;">
+              <span>حذف قرائت‌های ثبت‌شده توسط خودش (در همان روز ثبت)</span>
+            </label>
+          </div>
+          <button class="btn btn-brand" id="btn-save-perms" style="margin-top:20px;">ذخیره تنظیمات دسترسی</button>
+        </div>
       </section>
 
-      <!-- LOG (placeholder, admin only) -->
+      <!-- SETTINGS -->
+      <section class="page" data-page="settings">
+        <div class="page-title">تنظیمات</div>
+        <div class="page-desc">تنظیمات کلی سامانه، کلید دسترسی مشاهده‌گر و پشتیبان‌گیری</div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>کلید دسترسی مشاهده‌گر</h3></div>
+          <div class="page-desc" style="margin-bottom:14px;">این کلید بلافاصله پس از ذخیره فعال می‌شود و نیازی به آپلود مجدد فایل روی گیت‌هاب ندارد.</div>
+          <div style="display:flex; gap:10px; max-width:420px;">
+            <input type="text" id="set-guestkey" placeholder="کلید دسترسی جدید" style="flex:1; padding:10px 14px; border-radius:10px; border:1px solid var(--glass-brd); background:var(--ice-2); font-family:inherit;">
+            <button class="btn btn-brand" id="btn-save-guestkey">ذخیره کلید</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>پشتیبان‌گیری و بازیابی اطلاعات</h3></div>
+          <div class="page-desc" style="margin-bottom:14px;">خروجی کامل از تمام اطلاعات سامانه (مشترکین، قرائت‌ها، تعرفه‌ها، تنظیمات) را در یک فایل JSON دریافت یا از آن بازیابی کنید.</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-brand" id="btn-backup">⬇️ دریافت پشتیبان کامل (JSON)</button>
+            <label class="btn btn-ghost" style="cursor:pointer;">⬆️ بازیابی از فایل پشتیبان
+              <input type="file" id="restore-file" accept=".json" style="display:none;">
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- LOG -->
       <section class="page" data-page="log">
         <div class="page-title">لاگ سیستم</div>
         <div class="page-desc">تاریخچه کامل فعالیت‌های کاربران (Audit Log)</div>
@@ -590,13 +709,14 @@ tbody tr:hover{background:var(--ice-2);}
       <div class="field">
         <label>گروه مصرف *</label>
         <select id="c-group">
-          <option value="buy">خرید آب</option>
+          <option value="buy">خرید آب (تولید/ورودی)</option>
           <option value="org">مصرف سازمان</option>
           <option value="green">مصرف فضای سبز</option>
           <option value="company">مصرف شرکت‌ها</option>
           <option value="public">مصرف عام‌المنفعه</option>
           <option value="other">مصرف سایر</option>
         </select>
+        <div style="font-size:11px; color:var(--sub-text); margin-top:4px;">توجه: «خرید آب» به منزله کنتور تولید/ورودی است، نه مشترک فروش — در گزارش پرت آب به‌عنوان مبنای تولید محاسبه می‌شود.</div>
       </div>
       <div class="field"><label>ظرفیت برداشت (لیتر بر ثانیه)</label><input id="c-capacity" type="number" step="0.01"></div>
       <div class="field"><label>تعرفه پله اول (تومان/م³)</label><input id="c-tariff1" type="number"></div>
@@ -677,7 +797,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, onSnapshot,
-  serverTimestamp, query, orderBy
+  serverTimestamp, query, orderBy, setDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ============ FIREBASE CONFIG ============ */
@@ -705,16 +825,17 @@ const ROLE_MAP = {
 const GUEST_KEY = "1368"; // کلید ساده دسترسی مشاهده‌گر (فقط خواندنی)
 
 const GROUP_LABELS = {
-  buy:"خرید آب", org:"مصرف سازمان", green:"مصرف فضای سبز",
+  buy:"خرید آب (تولید / ورودی)", org:"مصرف سازمان", green:"مصرف فضای سبز",
   company:"مصرف شرکت‌ها", public:"مصرف عام‌المنفعه", other:"مصرف سایر"
 };
+const SALES_GROUPS = ['org','green','company','public','other']; // شش گروه منهای «خرید آب» که منبع تولید است، نه مشترک فروش
 const STATUS_BADGE = {
   active:{t:"فعال", c:"ok"}, inactive:{t:"غیرفعال", c:"danger"}, suspended:{t:"معلق", c:"warn"}
 };
 
 let currentRole = null; // 'admin' | 'station' | 'guest'
 let currentLabel = "";
-let unsubConsumers=null, unsubTariffs=null, unsubMeterTypes=null, unsubLog=null, unsubReadings=null;
+let unsubConsumers=null, unsubTariffs=null, unsubMeterTypes=null, unsubLog=null, unsubReadings=null, unsubPerms=null;
 let consumersCache=[], tariffsCache=[], meterTypesCache=[];
 
 /* ---------- logo embed ---------- */
@@ -765,8 +886,18 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
   try{
     if(role==='guest'){
       const key = toEnDigits(document.getElementById('login-guestkey').value.trim());
-      if(key !== GUEST_KEY){ errEl.textContent='کلید دسترسی نامعتبر است'; return; }
+      if(!key){ errEl.textContent='کلید دسترسی را وارد کنید'; return; }
       await signInAnonymously(auth);
+      let validKey = GUEST_KEY;
+      try{
+        const snap = await getDoc(doc(db,'settings','general'));
+        if(snap.exists() && snap.data().guestKey) validKey = snap.data().guestKey;
+      }catch(e){ /* fall back to default key on read failure */ }
+      if(key !== validKey){
+        await signOut(auth);
+        errEl.textContent='کلید دسترسی نامعتبر است';
+        return;
+      }
       currentRole='guest'; currentLabel='مشاهده‌گر';
     } else {
       const uname = toEnDigits(document.getElementById('login-username').value.trim());
@@ -823,6 +954,7 @@ document.getElementById('btn-logout').addEventListener('click', async ()=>{
   if(unsubConsumers) unsubConsumers(); if(unsubTariffs) unsubTariffs();
   if(unsubMeterTypes) unsubMeterTypes(); if(unsubLog) unsubLog();
   if(unsubReadings) unsubReadings();
+  if(unsubPerms) unsubPerms();
   await signOut(auth);
   currentRole=null; currentLabel='';
 });
@@ -848,6 +980,7 @@ const NAV_STRUCTURE = [
     {id:'reports', ic:'📈', label:'گزارشات', roles:['admin']},
     {id:'basic-info', ic:'🗂️', label:'اطلاعات پایه', roles:['admin']},
     {id:'users', ic:'🔐', label:'کاربران', roles:['admin']},
+    {id:'settings', ic:'⚙️', label:'تنظیمات', roles:['admin']},
     {id:'log', ic:'📋', label:'لاگ سیستم', roles:['admin']},
   ]}
 ];
@@ -855,7 +988,12 @@ function buildSidebar(){
   const nav = document.getElementById('sb-nav');
   nav.innerHTML='';
   NAV_STRUCTURE.forEach(grp=>{
-    const visibleItems = grp.items.filter(it=>it.roles.includes(currentRole));
+    const visibleItems = grp.items.filter(it=>{
+      if(it.roles.includes(currentRole)) return true;
+      if(currentRole==='station' && it.id==='reports' && perms.viewReports) return true;
+      if(currentRole==='station' && it.id==='finance' && perms.viewFinance) return true;
+      return false;
+    });
     if(!visibleItems.length) return;
     const lbl=document.createElement('div'); lbl.className='nav-group-label'; lbl.textContent=grp.group; nav.appendChild(lbl);
     visibleItems.forEach(it=>{
@@ -873,6 +1011,9 @@ function navigateTo(pageId, label){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.dataset.page===pageId));
   document.getElementById('crumb-current').textContent = label;
   if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('mobile-open');
+  if(pageId==='reports'){
+    setTimeout(()=>{ renderMonthlyTrendChart(); renderGroupCompareChart(); }, 50);
+  }
 }
 document.getElementById('sb-collapse-btn').addEventListener('click', ()=>{
   document.getElementById('sidebar').classList.toggle('collapsed');
@@ -1191,23 +1332,36 @@ function renderReadings(){
   rows.sort((a,b)=>(b.periodSerial||0)-(a.periodSerial||0));
   document.getElementById('readings-empty').style.display = rows.length? 'none':'block';
   const canManage = currentRole==='admin';
-  tbody.innerHTML = rows.map(r=>`<tr>
+  const canStationDelete = currentRole==='station' && perms.deleteOwnReadings;
+  tbody.innerHTML = rows.map(r=>{
+    const canDeleteThis = canManage || (canStationDelete && r.agentRole==='station' && r.date===todayJalaliStr());
+    return `<tr>
     <td class="mono">${r.consumerCode||''}</td><td>${r.consumerName||''}</td><td class="mono">${r.date||''}</td>
     <td class="mono">${fmtNum(r.prevReading)}</td><td class="mono">${fmtNum(r.newReading)}</td>
     <td class="mono">${r.closed?'-':fmtNum(r.consumption)}</td><td class="mono">${r.closed?'-':fmtNum(r.amount)}</td>
     <td>${r.closed?'<span class="badge warn">تعطیل/خراب</span>':'<span class="badge ok">ثبت‌شده</span>'}</td>
     <td>${r.agent||'-'}</td>
-    <td><button class="btn btn-danger btn-sm" data-del-r="${r.id}" ${canManage?'':'disabled style="opacity:.4"'}>حذف</button></td>
-  </tr>`).join('');
+    <td><button class="btn btn-danger btn-sm" data-del-r="${r.id}" ${canDeleteThis?'':'disabled style="opacity:.4"'}>حذف</button></td>
+  </tr>`;
+  }).join('');
   tbody.querySelectorAll('[data-del-r]').forEach(b=>b.addEventListener('click', async ()=>{
-    if(currentRole!=='admin') return toast('فقط مدیر سامانه مجاز به حذف قرائت است', true);
+    const rId = b.getAttribute('data-del-r');
+    const rec = readingsCache.find(x=>x.id===rId);
+    const allowed = currentRole==='admin' || (currentRole==='station' && perms.deleteOwnReadings && rec && rec.agentRole==='station' && rec.date===todayJalaliStr());
+    if(!allowed) return toast('اجازه حذف این قرائت را ندارید', true);
     if(!confirm('آیا از حذف این قرائت مطمئن هستید؟')) return;
-    await deleteDoc(doc(db,'readings', b.getAttribute('data-del-r')));
-    await logAction('حذف قرائت', b.getAttribute('data-del-r'));
+    await deleteDoc(doc(db,'readings', rId));
+    await logAction('حذف قرائت', rId);
     toast('قرائت حذف شد');
   }));
   renderBills();
   updateDashboardStats();
+  populateLossMonthSelect();
+  renderLossReport();
+  renderMonthlyTrendChart();
+  renderGroupCompareChart();
+  renderDebtorsReport();
+  renderUnreadReport();
 }
 document.getElementById('reading-search').addEventListener('input', renderReadings);
 
@@ -1225,8 +1379,14 @@ function renderBills(){
     <td class="mono">${b.consumerCode}</td><td>${b.consumerName}</td><td class="mono">${b.jy}/${String(b.jm).padStart(2,'0')}</td>
     <td class="mono">${fmtNum(b.consumption)}</td><td class="mono">${fmtNum(b.amount)}</td>
     <td>${b.paid?'<span class="badge ok">پرداخت‌شده</span>':'<span class="badge warn">پرداخت‌نشده</span>'}</td>
-    <td><button class="btn ${b.paid?'btn-ghost':'btn-brand'} btn-sm" data-toggle-paid="${b.id}" data-cur="${b.paid?1:0}" ${canManage?'':'disabled style="opacity:.4"'}>${b.paid?'لغو پرداخت':'ثبت پرداخت'}</button></td>
-  </tr>`).join('');
+    <td>
+      <button class="btn ${b.paid?'btn-ghost':'btn-brand'} btn-sm" data-toggle-paid="${b.id}" data-cur="${b.paid?1:0}" ${canManage?'':'disabled style="opacity:.4"'}>${b.paid?'لغو پرداخت':'ثبت پرداخت'}</button>
+      <button class="btn btn-ghost btn-sm" data-print-bill="${b.id}">🖨️ چاپ</button>
+    </td></tr>`).join('');
+  tbody.querySelectorAll('[data-print-bill]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const bill = readingsCache.find(x=>x.id===btn.getAttribute('data-print-bill'));
+    if(bill) printInvoice(bill);
+  }));
   tbody.querySelectorAll('[data-toggle-paid]').forEach(btn=>btn.addEventListener('click', async ()=>{
     if(currentRole!=='admin') return toast('فقط مدیر سامانه مجاز به ثبت پرداخت است', true);
     const id = btn.getAttribute('data-toggle-paid'); const cur = btn.getAttribute('data-cur')==='1';
@@ -1235,6 +1395,87 @@ function renderBills(){
     toast(cur?'پرداخت لغو شد':'پرداخت ثبت شد');
   }));
 }
+
+/* ============ PRINT INVOICE ============ */
+function printInvoice(bill){
+  const c = consumersCache.find(x=>x.id===bill.consumerId);
+  const w = window.open('', '_blank', 'width=480,height=700');
+  w.document.write(`
+    <html lang="fa" dir="rtl"><head><meta charset="UTF-8"><title>صورتحساب ${bill.consumerCode}</title>
+    <style>
+      body{font-family:'Vazirmatn', Tahoma, sans-serif; padding:26px; color:#0F2438;}
+      h2{text-align:center; margin-bottom:2px;}
+      .sub{text-align:center; color:#5C7A8E; font-size:12px; margin-bottom:20px;}
+      table{width:100%; border-collapse:collapse; margin-top:14px;}
+      td, th{padding:8px 10px; border:1px solid #ddd; font-size:13px;}
+      th{background:#EAF3F6; text-align:right;}
+      .total{font-size:16px; font-weight:bold; margin-top:16px; text-align:left;}
+      .foot{text-align:center; margin-top:30px; font-size:11px; color:#777;}
+    </style></head><body>
+    <h2>صورتحساب مصرف آب</h2>
+    <div class="sub">ایستگاه توزیع آب پارس — Rostampour Water Systems</div>
+    <table>
+      <tr><th>کد اشتراک</th><td class="mono">${bill.consumerCode}</td></tr>
+      <tr><th>نام مشترک</th><td>${bill.consumerName}</td></tr>
+      <tr><th>گروه مصرف</th><td>${GROUP_LABELS[c?c.group:'']||'-'}</td></tr>
+      <tr><th>دوره</th><td>${bill.jy}/${String(bill.jm).padStart(2,'0')}</td></tr>
+      <tr><th>تاریخ قرائت</th><td>${bill.date}</td></tr>
+      <tr><th>عدد قبلی</th><td>${fmtNum(bill.prevReading)}</td></tr>
+      <tr><th>عدد جدید</th><td>${fmtNum(bill.newReading)}</td></tr>
+      <tr><th>مصرف</th><td>${fmtNum(bill.consumption)} متر مکعب</td></tr>
+      <tr><th>وضعیت پرداخت</th><td>${bill.paid?'پرداخت‌شده':'پرداخت‌نشده'}</td></tr>
+    </table>
+    <div class="total">مبلغ قابل پرداخت: ${fmtNum(bill.amount)} تومان</div>
+    <div class="foot">طراح و توسعه‌دهنده: محمدرضا رستم پور</div>
+    <script>window.print();<\/script>
+    </body></html>`);
+  w.document.close();
+}
+
+/* ============ EXCEL EXPORT HELPERS ============ */
+function exportArrayToExcel(filename, headers, rows){
+  if(typeof XLSX==='undefined'){ toast('کتابخانه خروجی Excel بارگذاری نشد — اتصال اینترنت را بررسی کنید', true); return; }
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, filename);
+}
+document.getElementById('btn-export-consumers').addEventListener('click', ()=>{
+  const headers = ['کد اشتراک','نام مشترک','گروه مصرف','ظرفیت برداشت','تعرفه پله ۱','تعرفه پله ۲','وضعیت'];
+  const rows = consumersCache.map(c=>[c.code, c.name, GROUP_LABELS[c.group]||c.group, c.capacity, c.tariff1, c.tariff2, (STATUS_BADGE[c.status]||{}).t||c.status]);
+  exportArrayToExcel('مشترکین.xlsx', headers, rows);
+});
+document.getElementById('btn-export-readings').addEventListener('click', ()=>{
+  const headers = ['کد اشتراک','نام مشترک','تاریخ','عدد قبلی','عدد جدید','مصرف','مبلغ','وضعیت','مأمور'];
+  const rows = readingsCache.map(r=>[r.consumerCode, r.consumerName, r.date, r.prevReading, r.newReading, r.consumption, r.amount, r.closed?'تعطیل/خراب':'ثبت‌شده', r.agent]);
+  exportArrayToExcel('قرائت‌ها.xlsx', headers, rows);
+});
+document.getElementById('btn-export-bills').addEventListener('click', ()=>{
+  const bills = readingsCache.filter(r=>!r.closed && r.amount>0);
+  const headers = ['کد اشتراک','نام مشترک','دوره','مصرف','مبلغ','وضعیت پرداخت'];
+  const rows = bills.map(b=>[b.consumerCode, b.consumerName, `${b.jy}/${String(b.jm).padStart(2,'0')}`, b.consumption, b.amount, b.paid?'پرداخت‌شده':'پرداخت‌نشده']);
+  exportArrayToExcel('صورتحساب‌ها.xlsx', headers, rows);
+});
+
+/* ============ PERMISSIONS (station toggles, admin-managed) ============ */
+let perms = { viewReports:false, viewFinance:false, deleteOwnReadings:false };
+function loadPermsIntoForm(){
+  document.getElementById('perm-viewReports').checked = !!perms.viewReports;
+  document.getElementById('perm-viewFinance').checked = !!perms.viewFinance;
+  document.getElementById('perm-deleteOwnReadings').checked = !!perms.deleteOwnReadings;
+}
+document.getElementById('btn-save-perms').addEventListener('click', async ()=>{
+  const newPerms = {
+    viewReports: document.getElementById('perm-viewReports').checked,
+    viewFinance: document.getElementById('perm-viewFinance').checked,
+    deleteOwnReadings: document.getElementById('perm-deleteOwnReadings').checked
+  };
+  try{
+    await setDoc(doc(db,'settings','permissions'), newPerms);
+    await logAction('تغییر سطوح دسترسی مأمور قرائت', JSON.stringify(newPerms));
+    toast('تنظیمات دسترسی ذخیره شد — منوی کاربر مأمور بروزرسانی می‌شود');
+  }catch(e){ console.error(e); toast('خطا در ذخیره تنظیمات دسترسی', true); }
+});
 
 function updateDashboardStats(){
   const total = consumersCache.length;
@@ -1246,6 +1487,212 @@ function updateDashboardStats(){
   const income = thisMonthReadings.filter(r=>r.paid).reduce((s,r)=>s+(r.amount||0),0);
   document.getElementById('stat-income').textContent = fmtNum(income);
 }
+
+/* ============ WATER-LOSS RECONCILIATION REPORT ============
+   «خرید آب» گروه مشترکین فروش نیست، بلکه کنتور تولید/ورودی سامانه است.
+   این گزارش تولید (خرید آب) را در برابر مجموع فروش پنج گروه دیگر می‌سنجد؛
+   مابه‌تفاوت به‌عنوان پرت آب (یا در حالت منفی، هشدار ناهماهنگی داده) گزارش می‌شود.
+*/
+function consumerGroup(consumerId){
+  const c = consumersCache.find(x=>x.id===consumerId);
+  return c ? c.group : null;
+}
+function populateLossMonthSelect(){
+  const sel = document.getElementById('loss-month-select');
+  const cur = currentJalaliYM();
+  const keys = new Set([`${cur.y}-${cur.m}`]);
+  readingsCache.forEach(r=>{ if(r.jy && r.jm) keys.add(`${r.jy}-${r.jm}`); });
+  const arr = Array.from(keys).map(k=>{ const [y,m]=k.split('-').map(Number); return {y,m}; })
+    .sort((a,b)=> (b.y*12+b.m)-(a.y*12+a.m));
+  const prevVal = sel.value;
+  sel.innerHTML = arr.map(x=>`<option value="${x.y}-${x.m}">دوره ${toFaDigits(x.y)}/${toFaDigits(String(x.m).padStart(2,'0'))}</option>`).join('');
+  sel.value = prevVal && keys.has(prevVal) ? prevVal : `${cur.y}-${cur.m}`;
+}
+function renderLossReport(){
+  const sel = document.getElementById('loss-month-select');
+  if(!sel.options.length) populateLossMonthSelect();
+  const [y,m] = (sel.value || `${currentJalaliYM().y}-${currentJalaliYM().m}`).split('-').map(Number);
+  const periodReadings = readingsCache.filter(r=>r.jy===y && r.jm===m && !r.closed);
+  document.getElementById('loss-empty').style.display = periodReadings.length ? 'none' : 'block';
+
+  let production = 0, sales = 0;
+  const perGroup = {};
+  periodReadings.forEach(r=>{
+    const grp = consumerGroup(r.consumerId);
+    if(grp === 'buy'){ production += (r.consumption||0); }
+    else if(SALES_GROUPS.includes(grp)){ sales += (r.consumption||0); perGroup[grp]=(perGroup[grp]||0)+(r.consumption||0); }
+  });
+  const diff = production - sales;
+  const lossPercent = production>0 ? (diff/production*100) : 0;
+
+  document.getElementById('loss-production').innerHTML = `${fmtNum(production.toFixed(1))} <small>م³</small>`;
+  document.getElementById('loss-sales').innerHTML = `${fmtNum(sales.toFixed(1))} <small>م³</small>`;
+  document.getElementById('loss-diff').innerHTML = `${fmtNum(diff.toFixed(1))} <small>م³</small>`;
+
+  const badgeEl = document.getElementById('loss-percent-badge');
+  const warnEl = document.getElementById('loss-warning');
+  if(production===0){
+    badgeEl.innerHTML = `<span class="badge info">قرائت تولید ثبت نشده</span>`;
+    warnEl.style.display='none';
+  } else if(diff < 0){
+    badgeEl.innerHTML = `<span class="badge danger">ناهماهنگی داده! فروش بیش از تولید</span>`;
+    warnEl.style.display='block';
+    warnEl.textContent = `⚠️ در این دوره، مجموع فروش گروه‌ها (${fmtNum(sales.toFixed(1))} م³) از میزان تولید/خرید آب (${fmtNum(production.toFixed(1))} م³) بیشتر است. این حالت معمولاً نشانه‌ی خطای قرائت یا ثبت اشتباه گروه مشترک است — قرائت‌های این دوره را بازبینی کنید.`;
+  } else {
+    const cls = lossPercent<10 ? 'ok' : (lossPercent<20 ? 'warn' : 'danger');
+    badgeEl.innerHTML = `<span class="badge ${cls}">${fmtNum(lossPercent.toFixed(1))}٪ پرت آب</span>`;
+    warnEl.style.display = lossPercent>=20 ? 'block' : 'none';
+    if(lossPercent>=20) warnEl.textContent = `⚠️ درصد پرت آب این دوره (${fmtNum(lossPercent.toFixed(1))}٪) بالاتر از حد معمول شبکه‌های توزیع است — بررسی نشتی، اتصالات غیرمجاز یا خطای کنتور توصیه می‌شود.`;
+  }
+
+  const tbody = document.getElementById('loss-groups-tbody');
+  tbody.innerHTML = SALES_GROUPS.map(g=>{
+    const v = perGroup[g]||0;
+    const share = sales>0 ? (v/sales*100) : 0;
+    return `<tr><td>${GROUP_LABELS[g]}</td><td class="mono">${fmtNum(v.toFixed(1))}</td><td class="mono">${fmtNum(share.toFixed(1))}٪</td></tr>`;
+  }).join('');
+}
+document.getElementById('loss-month-select').addEventListener('change', ()=>{ renderLossReport(); renderGroupCompareChart(); });
+
+/* ============ CHART: monthly sales trend (last 6 months) ============ */
+let chartTrend=null, chartGroup=null;
+function last6JalaliMonths(){
+  const cur = currentJalaliYM();
+  const list=[];
+  let y=cur.y, m=cur.m;
+  for(let i=0;i<6;i++){
+    list.unshift({y,m});
+    m--; if(m<1){ m=12; y--; }
+  }
+  return list;
+}
+function renderMonthlyTrendChart(){
+  const canvas = document.getElementById('chart-monthly-trend');
+  if(!canvas || typeof Chart==='undefined') return;
+  const months = last6JalaliMonths();
+  const labels = months.map(x=>`${toFaDigits(x.y)}/${toFaDigits(String(x.m).padStart(2,'0'))}`);
+  const data = months.map(x=>{
+    return readingsCache
+      .filter(r=>!r.closed && r.jy===x.y && r.jm===x.m && SALES_GROUPS.includes(consumerGroup(r.consumerId)))
+      .reduce((s,r)=>s+(r.consumption||0),0);
+  });
+  if(chartTrend) chartTrend.destroy();
+  chartTrend = new Chart(canvas, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'مصرف فروش (م³)', data, backgroundColor:'#00BFA6', borderRadius:8 }] },
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+  });
+}
+function renderGroupCompareChart(){
+  const canvas = document.getElementById('chart-group-compare');
+  if(!canvas || typeof Chart==='undefined') return;
+  const sel = document.getElementById('loss-month-select');
+  const [y,m] = (sel.value || `${currentJalaliYM().y}-${currentJalaliYM().m}`).split('-').map(Number);
+  const perGroup={};
+  readingsCache.filter(r=>!r.closed && r.jy===y && r.jm===m).forEach(r=>{
+    const g = consumerGroup(r.consumerId);
+    if(SALES_GROUPS.includes(g)) perGroup[g]=(perGroup[g]||0)+(r.consumption||0);
+  });
+  const labels = SALES_GROUPS.map(g=>GROUP_LABELS[g]);
+  const data = SALES_GROUPS.map(g=>perGroup[g]||0);
+  if(chartGroup) chartGroup.destroy();
+  chartGroup = new Chart(canvas, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'مصرف (م³)', data, backgroundColor:['#1565C0','#00BFA6','#E8A93B','#2E9E5B','#D64545'], borderRadius:8 }] },
+    options:{ responsive:true, indexAxis:'y', plugins:{legend:{display:false}}, scales:{ x:{beginAtZero:true} } }
+  });
+}
+
+/* ============ DEBTORS REPORT ============ */
+function renderDebtorsReport(){
+  const debtors = readingsCache.filter(r=>!r.closed && r.amount>0 && !r.paid).sort((a,b)=>b.amount-a.amount);
+  document.getElementById('debtors-empty').style.display = debtors.length? 'none':'block';
+  document.getElementById('debtors-tbody').innerHTML = debtors.map(d=>`<tr>
+    <td class="mono">${d.consumerCode}</td><td>${d.consumerName}</td><td class="mono">${d.jy}/${String(d.jm).padStart(2,'0')}</td><td class="mono">${fmtNum(d.amount)}</td>
+  </tr>`).join('');
+}
+document.getElementById('btn-export-debtors').addEventListener('click', ()=>{
+  const debtors = readingsCache.filter(r=>!r.closed && r.amount>0 && !r.paid).sort((a,b)=>b.amount-a.amount);
+  const headers=['کد اشتراک','نام مشترک','دوره','مبلغ بدهی'];
+  const rows = debtors.map(d=>[d.consumerCode, d.consumerName, `${d.jy}/${String(d.jm).padStart(2,'0')}`, d.amount]);
+  exportArrayToExcel('بدهکاران.xlsx', headers, rows);
+});
+
+/* ============ UNREAD / BROKEN REPORT (current month) ============ */
+function renderUnreadReport(){
+  const {y:cy,m:cm} = currentJalaliYM();
+  const thisMonth = readingsCache.filter(r=>r.jy===cy && r.jm===cm);
+  const readMap = {};
+  thisMonth.forEach(r=>{ readMap[r.consumerId] = r.closed ? 'closed' : 'ok'; });
+  const rows = [];
+  consumersCache.forEach(c=>{
+    const st = readMap[c.id];
+    if(st==='closed') rows.push({c, status:'تعطیل/خراب', cls:'warn'});
+    else if(!st) rows.push({c, status:'قرائت نشده', cls:'danger'});
+  });
+  document.getElementById('unread-empty').style.display = rows.length? 'none':'block';
+  document.getElementById('unread-tbody').innerHTML = rows.map(r=>`<tr>
+    <td class="mono">${r.c.code}</td><td>${r.c.name}</td><td>${GROUP_LABELS[r.c.group]||''}</td>
+    <td><span class="badge ${r.cls}">${r.status}</span></td>
+  </tr>`).join('');
+}
+
+/* ============ SETTINGS: guest key (dynamic, no redeploy needed) ============ */
+let generalSettings = { guestKey: '1368' };
+document.getElementById('btn-save-guestkey').addEventListener('click', async ()=>{
+  const key = toEnDigits(document.getElementById('set-guestkey').value.trim());
+  if(!key){ toast('کلید نمی‌تواند خالی باشد', true); return; }
+  try{
+    await setDoc(doc(db,'settings','general'), { guestKey:key }, {merge:true});
+    await logAction('تغییر کلید دسترسی مشاهده‌گر', '-');
+    toast('کلید دسترسی مشاهده‌گر ذخیره شد');
+    document.getElementById('set-guestkey').value='';
+  }catch(e){ console.error(e); toast('خطا در ذخیره کلید', true); }
+});
+
+/* ============ SETTINGS: backup / restore ============ */
+const BACKUP_COLLECTIONS = ['consumers','tariffs','meterTypes','readings','auditLogs'];
+document.getElementById('btn-backup').addEventListener('click', async ()=>{
+  try{
+    toast('در حال آماده‌سازی فایل پشتیبان...');
+    const backup = { exportedAt: new Date().toISOString(), collections:{} };
+    for(const colName of BACKUP_COLLECTIONS){
+      const snap = await getDocs(collection(db,colName));
+      backup.collections[colName] = snap.docs.map(d=>({id:d.id, data:d.data()}));
+    }
+    const permsSnap = await getDoc(doc(db,'settings','permissions'));
+    const genSnap = await getDoc(doc(db,'settings','general'));
+    backup.settings = { permissions: permsSnap.exists()?permsSnap.data():{}, general: genSnap.exists()?genSnap.data():{} };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `rostampour-water-backup-${todayJalaliStr().replace(/\//g,'-')}.json`;
+    a.click(); URL.revokeObjectURL(url);
+    await logAction('دریافت پشتیبان کامل', '-');
+    toast('فایل پشتیبان با موفقیت دانلود شد');
+  }catch(e){ console.error(e); toast('خطا در تهیه پشتیبان', true); }
+});
+document.getElementById('restore-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  if(!confirm('بازیابی اطلاعات، داده‌های فعلی را با داده‌های فایل پشتیبان جایگزین می‌کند (رکوردهای موجود حذف نمی‌شوند، ممکن است تکراری ایجاد شود). آیا ادامه می‌دهید؟')) { e.target.value=''; return; }
+  try{
+    const text = await file.text();
+    const backup = JSON.parse(text);
+    toast('در حال بازیابی اطلاعات...');
+    for(const colName of Object.keys(backup.collections||{})){
+      for(const item of backup.collections[colName]){
+        await setDoc(doc(db, colName, item.id), item.data);
+      }
+    }
+    if(backup.settings){
+      if(backup.settings.permissions) await setDoc(doc(db,'settings','permissions'), backup.settings.permissions);
+      if(backup.settings.general) await setDoc(doc(db,'settings','general'), backup.settings.general);
+    }
+    await logAction('بازیابی از فایل پشتیبان', file.name);
+    toast('بازیابی اطلاعات با موفقیت انجام شد');
+  }catch(err){ console.error(err); toast('خطا در بازیابی — فایل معتبر نیست', true); }
+  e.target.value='';
+});
 
 /* ============ LOG MODULE ============ */
 function renderLog(logs){
@@ -1279,6 +1726,12 @@ function attachDataListeners(){
     readingsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderReadings();
   }, err=>console.error('readings listener', err));
+
+  unsubPerms = onSnapshot(doc(db,'settings','permissions'), snap=>{
+    if(snap.exists()) perms = snap.data();
+    if(document.getElementById('perm-viewReports')) loadPermsIntoForm();
+    buildSidebar(); // re-apply nav visibility for station role live
+  }, err=>console.error('perms listener', err));
 
   if(currentRole==='admin'){
     const qLog = query(collection(db,'auditLogs'), orderBy('ts','desc'));
