@@ -501,18 +501,49 @@ tbody tr:hover{background:var(--ice-2);}
         </div>
       </section>
 
-      <!-- METER READING (placeholder for phase 2) -->
+      <!-- METER READING -->
       <section class="page" data-page="reading">
         <div class="page-title">قرائت کنتور</div>
-        <div class="page-desc">ثبت قرائت ماهانه مشترکین</div>
-        <div class="panel"><div class="empty-state"><div class="ic">🚧</div>این بخش در فاز بعدی توسعه تکمیل می‌شود</div></div>
+        <div class="page-desc">ثبت قرائت ماهانه مشترکین و محاسبه خودکار مصرف و مبلغ</div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>لیست قرائت‌های ثبت‌شده</h3>
+            <button class="btn btn-brand" id="btn-add-reading">＋ ثبت قرائت جدید</button>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="reading-search" placeholder="جستجو بر اساس نام یا کد اشتراک...">
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>کد اشتراک</th><th>نام مشترک</th><th>تاریخ قرائت</th><th>عدد قبلی</th><th>عدد جدید</th><th>مصرف (م³)</th><th>مبلغ (تومان)</th><th>وضعیت</th><th>مأمور</th><th>عملیات</th>
+              </tr></thead>
+              <tbody id="readings-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="readings-empty" style="display:none;"><div class="ic">📖</div>هنوز قرائتی ثبت نشده است</div>
+        </div>
       </section>
 
-      <!-- FINANCE (placeholder) -->
+      <!-- FINANCE -->
       <section class="page" data-page="finance">
         <div class="page-title">مالی</div>
-        <div class="page-desc">صدور و پیگیری صورتحساب و پرداخت‌ها</div>
-        <div class="panel"><div class="empty-state"><div class="ic">🚧</div>این بخش در فاز بعدی توسعه تکمیل می‌شود</div></div>
+        <div class="page-desc">پیگیری صورتحساب‌های صادرشده و وضعیت پرداخت</div>
+        <div class="grid-stats" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card"><div class="lbl">جمع صورتحساب‌های پرداخت‌شده</div><div class="val mono" id="fin-paid">۰</div></div>
+          <div class="stat-card"><div class="lbl">جمع صورتحساب‌های پرداخت‌نشده</div><div class="val mono" id="fin-unpaid">۰</div></div>
+          <div class="stat-card"><div class="lbl">تعداد صورتحساب‌ها</div><div class="val mono" id="fin-count">۰</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>صورتحساب‌ها</h3></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>دوره</th><th>مصرف (م³)</th><th>مبلغ (تومان)</th><th>وضعیت پرداخت</th><th>عملیات</th></tr></thead>
+              <tbody id="bills-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="bills-empty" style="display:none;"><div class="ic">💳</div>هنوز صورتحسابی صادر نشده است</div>
+        </div>
       </section>
 
       <!-- REPORTS (placeholder, admin only) -->
@@ -610,6 +641,33 @@ tbody tr:hover{background:var(--ice-2);}
   </div>
 </div>
 
+<!-- MODAL: reading -->
+<div class="modal-back" id="modal-reading">
+  <div class="modal">
+    <div class="modal-head"><h3>ثبت قرائت جدید</h3><div class="x" data-close>✕</div></div>
+    <div class="modal-body">
+      <div class="field full">
+        <label>انتخاب مشترک *</label>
+        <select id="r-consumer"><option value="">-- انتخاب کنید --</option></select>
+      </div>
+      <div class="field"><label>تاریخ قرائت (جلالی) *</label><input id="r-date" type="text" placeholder="۱۴۰۴/۰۴/۲۷"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn btn-ghost btn-sm" id="btn-today-date" style="width:100%;">امروز</button></div>
+      <div class="field"><label>عدد قبلی (خودکار)</label><input id="r-prev" type="number" readonly style="background:var(--ice-2);"></div>
+      <div class="field"><label>عدد جدید *</label><input id="r-new" type="number"></div>
+      <div class="field full" style="flex-direction:row; align-items:center; gap:10px; display:flex;">
+        <input type="checkbox" id="r-closed" style="width:auto;">
+        <label style="margin:0;">تعطیل بود یا خراب است (بدون ثبت عدد، برای گزارش جداگانه)</label>
+      </div>
+      <div class="field full"><label>توضیحات</label><input id="r-notes" type="text"></div>
+      <div class="field full" id="r-preview" style="background:var(--ice-2); border-radius:12px; padding:14px; font-size:13px; display:none;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close>انصراف</button>
+      <button class="btn btn-brand" id="btn-save-reading">ذخیره قرائت</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script type="module">
@@ -656,7 +714,7 @@ const STATUS_BADGE = {
 
 let currentRole = null; // 'admin' | 'station' | 'guest'
 let currentLabel = "";
-let unsubConsumers=null, unsubTariffs=null, unsubMeterTypes=null, unsubLog=null;
+let unsubConsumers=null, unsubTariffs=null, unsubMeterTypes=null, unsubLog=null, unsubReadings=null;
 let consumersCache=[], tariffsCache=[], meterTypesCache=[];
 
 /* ---------- logo embed ---------- */
@@ -764,6 +822,7 @@ document.getElementById('btn-logout').addEventListener('click', async ()=>{
   if(currentRole!=='guest') await logAction('خروج از سامانه','-');
   if(unsubConsumers) unsubConsumers(); if(unsubTariffs) unsubTariffs();
   if(unsubMeterTypes) unsubMeterTypes(); if(unsubLog) unsubLog();
+  if(unsubReadings) unsubReadings();
   await signOut(auth);
   currentRole=null; currentLabel='';
 });
@@ -896,6 +955,7 @@ function renderConsumers(){
   tbody.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openEditConsumer(b.dataset.edit)));
   tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>deleteConsumer(b.dataset.del)));
   document.getElementById('stat-consumers').textContent = fmtNum(consumersCache.length);
+  if(typeof updateDashboardStats==='function') updateDashboardStats();
 }
 function openEditConsumer(id){
   if(currentRole!=='admin'){ toast('فقط مدیر سامانه مجاز به ویرایش است', true); return; }
@@ -1001,6 +1061,192 @@ function renderMeterTypes(){
   }));
 }
 
+/* ============ JALALI DATE HELPERS ============
+   از تقویم فارسی داخلی مرورگر (Intl) برای تبدیل دقیق میلادی به جلالی استفاده می‌شود.
+   محاسبه «روزهای سپری‌شده بین دو قرائت» برای تعیین سقف پله اول مصرف، از یک شمارش
+   تقریبی روزهای جلالی استفاده می‌کند که برای این منظور دقت کافی دارد.
+*/
+function todayJalaliStr(){
+  const fmt = new Intl.DateTimeFormat('en-US-u-ca-persian', {year:'numeric', month:'2-digit', day:'2-digit'});
+  const parts = fmt.formatToParts(new Date());
+  const y=parts.find(p=>p.type==='year').value, m=parts.find(p=>p.type==='month').value, d=parts.find(p=>p.type==='day').value;
+  return `${y}/${m}/${d}`;
+}
+function currentJalaliYM(){
+  const s = todayJalaliStr().split('/');
+  return { y:+s[0], m:+s[1] };
+}
+function parseJalali(str){
+  str = toEnDigits(str).replace(/-/g,'/').trim();
+  const parts = str.split('/').map(s=>parseInt(s,10));
+  if(parts.length!==3 || parts.some(isNaN)) return null;
+  return {y:parts[0], m:parts[1], d:parts[2]};
+}
+function jalaliSerial(y,m,d){
+  const cum=[0,31,62,93,124,155,186,216,246,276,306,336];
+  return y*365 + Math.floor(y/4) + (cum[m-1]||0) + d;
+}
+
+/* ============ READING & FINANCE MODULE ============ */
+let readingsCache = [];
+function populateConsumerSelect(){
+  const sel = document.getElementById('r-consumer');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">-- انتخاب کنید --</option>' +
+    consumersCache.map(c=>`<option value="${c.id}">${c.code} — ${c.name}</option>`).join('');
+  sel.value = currentVal;
+}
+function findLastReading(consumerId){
+  const list = readingsCache.filter(r=>r.consumerId===consumerId).sort((a,b)=>(b.periodSerial||0)-(a.periodSerial||0));
+  return list.length ? list[0] : null;
+}
+document.getElementById('btn-add-reading').addEventListener('click', ()=>{
+  populateConsumerSelect();
+  document.getElementById('r-consumer').value='';
+  document.getElementById('r-prev').value='';
+  document.getElementById('r-new').value='';
+  document.getElementById('r-closed').checked=false;
+  document.getElementById('r-notes').value='';
+  document.getElementById('r-date').value = todayJalaliStr();
+  document.getElementById('r-preview').style.display='none';
+  document.getElementById('modal-reading').classList.add('show');
+});
+document.getElementById('btn-today-date').addEventListener('click', ()=>{
+  document.getElementById('r-date').value = todayJalaliStr();
+  updateReadingPreview();
+});
+document.getElementById('r-consumer').addEventListener('change', ()=>{
+  const cId = document.getElementById('r-consumer').value;
+  const last = findLastReading(cId);
+  document.getElementById('r-prev').value = last ? last.newReading : 0;
+  updateReadingPreview();
+});
+['r-new','r-date','r-closed'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updateReadingPreview);
+  document.getElementById(id).addEventListener('change', updateReadingPreview);
+});
+
+function computeReadingCalc(){
+  const cId = document.getElementById('r-consumer').value;
+  const consumer = consumersCache.find(c=>c.id===cId);
+  const closed = document.getElementById('r-closed').checked;
+  const prev = parseFloat(document.getElementById('r-prev').value)||0;
+  const neu = parseFloat(document.getElementById('r-new').value)||0;
+  const dateParts = parseJalali(document.getElementById('r-date').value);
+  if(!consumer || !dateParts) return null;
+  const last = findLastReading(cId);
+  const periodSerial = jalaliSerial(dateParts.y, dateParts.m, dateParts.d);
+  const daysElapsed = last ? Math.max(1, periodSerial - (last.periodSerial||periodSerial-30)) : 30;
+  if(closed){
+    return { consumer, dateParts, periodSerial, prev, neu:prev, consumption:0, allowedVolume:0, amount:0, closed:true, daysElapsed };
+  }
+  const consumption = Math.max(0, neu - prev);
+  const allowedVolume = (parseFloat(consumer.capacity)||0) * 86400 * daysElapsed / 1000; // م³
+  const tier1Vol = Math.min(consumption, allowedVolume);
+  const tier2Vol = Math.max(0, consumption - allowedVolume);
+  const amount = tier1Vol*(parseFloat(consumer.tariff1)||0) + tier2Vol*(parseFloat(consumer.tariff2)||0);
+  return { consumer, dateParts, periodSerial, prev, neu, consumption, allowedVolume, amount, closed:false, daysElapsed };
+}
+function updateReadingPreview(){
+  const box = document.getElementById('r-preview');
+  const r = computeReadingCalc();
+  if(!r){ box.style.display='none'; return; }
+  box.style.display='block';
+  if(r.closed){
+    box.innerHTML = `⚠️ این دوره به‌عنوان <b>تعطیل/خراب</b> ثبت می‌شود — بدون محاسبه مصرف و مبلغ (برای گزارش جداگانه لحاظ می‌شود).`;
+  } else {
+    box.innerHTML = `مصرف محاسبه‌شده: <b class="mono">${fmtNum(r.consumption.toFixed(2))}</b> متر مکعب
+      &nbsp;|&nbsp; سقف پله اول (بر اساس ${fmtNum(r.daysElapsed)} روز): <b class="mono">${fmtNum(r.allowedVolume.toFixed(2))}</b> م³
+      &nbsp;|&nbsp; مبلغ قابل پرداخت: <b class="mono">${fmtNum(Math.round(r.amount))}</b> تومان`;
+  }
+}
+document.getElementById('btn-save-reading').addEventListener('click', async ()=>{
+  const r = computeReadingCalc();
+  if(!r){ toast('انتخاب مشترک و تاریخ قرائت الزامی است', true); return; }
+  if(!r.closed && r.neu < r.prev){ toast('عدد جدید نمی‌تواند کمتر از عدد قبلی باشد', true); return; }
+  const payload = {
+    consumerId: r.consumer.id, consumerCode: r.consumer.code, consumerName: r.consumer.name,
+    date: document.getElementById('r-date').value.trim(), periodSerial: r.periodSerial,
+    jy: r.dateParts.y, jm: r.dateParts.m,
+    prevReading: r.prev, newReading: r.closed ? r.prev : r.neu,
+    consumption: r.closed ? 0 : Math.round(r.consumption*100)/100,
+    allowedVolume: r.closed ? 0 : Math.round(r.allowedVolume*100)/100,
+    amount: r.closed ? 0 : Math.round(r.amount),
+    closed: r.closed, paid:false,
+    notes: document.getElementById('r-notes').value.trim(),
+    agent: currentLabel, agentRole: currentRole, createdAt: serverTimestamp()
+  };
+  try{
+    await addDoc(collection(db,'readings'), payload);
+    await logAction('ثبت قرائت', `${payload.consumerCode} - ${payload.date}`);
+    toast('قرائت با موفقیت ثبت شد');
+    document.getElementById('modal-reading').classList.remove('show');
+  }catch(e){ console.error(e); toast('خطا در ذخیره‌سازی قرائت', true); }
+});
+
+function renderReadings(){
+  const search = document.getElementById('reading-search').value.trim().toLowerCase();
+  const tbody = document.getElementById('readings-tbody');
+  let rows = readingsCache.filter(r=> !search || (r.consumerName||'').toLowerCase().includes(search) || (r.consumerCode||'').toLowerCase().includes(search));
+  rows.sort((a,b)=>(b.periodSerial||0)-(a.periodSerial||0));
+  document.getElementById('readings-empty').style.display = rows.length? 'none':'block';
+  const canManage = currentRole==='admin';
+  tbody.innerHTML = rows.map(r=>`<tr>
+    <td class="mono">${r.consumerCode||''}</td><td>${r.consumerName||''}</td><td class="mono">${r.date||''}</td>
+    <td class="mono">${fmtNum(r.prevReading)}</td><td class="mono">${fmtNum(r.newReading)}</td>
+    <td class="mono">${r.closed?'-':fmtNum(r.consumption)}</td><td class="mono">${r.closed?'-':fmtNum(r.amount)}</td>
+    <td>${r.closed?'<span class="badge warn">تعطیل/خراب</span>':'<span class="badge ok">ثبت‌شده</span>'}</td>
+    <td>${r.agent||'-'}</td>
+    <td><button class="btn btn-danger btn-sm" data-del-r="${r.id}" ${canManage?'':'disabled style="opacity:.4"'}>حذف</button></td>
+  </tr>`).join('');
+  tbody.querySelectorAll('[data-del-r]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(currentRole!=='admin') return toast('فقط مدیر سامانه مجاز به حذف قرائت است', true);
+    if(!confirm('آیا از حذف این قرائت مطمئن هستید؟')) return;
+    await deleteDoc(doc(db,'readings', b.getAttribute('data-del-r')));
+    await logAction('حذف قرائت', b.getAttribute('data-del-r'));
+    toast('قرائت حذف شد');
+  }));
+  renderBills();
+  updateDashboardStats();
+}
+document.getElementById('reading-search').addEventListener('input', renderReadings);
+
+function renderBills(){
+  const tbody = document.getElementById('bills-tbody');
+  const bills = readingsCache.filter(r=>!r.closed && r.amount>0).sort((a,b)=>(b.periodSerial||0)-(a.periodSerial||0));
+  document.getElementById('bills-empty').style.display = bills.length? 'none':'block';
+  const canManage = currentRole==='admin';
+  let paidSum=0, unpaidSum=0;
+  bills.forEach(b=> b.paid ? paidSum+=b.amount : unpaidSum+=b.amount);
+  document.getElementById('fin-paid').textContent = fmtNum(paidSum);
+  document.getElementById('fin-unpaid').textContent = fmtNum(unpaidSum);
+  document.getElementById('fin-count').textContent = fmtNum(bills.length);
+  tbody.innerHTML = bills.map(b=>`<tr>
+    <td class="mono">${b.consumerCode}</td><td>${b.consumerName}</td><td class="mono">${b.jy}/${String(b.jm).padStart(2,'0')}</td>
+    <td class="mono">${fmtNum(b.consumption)}</td><td class="mono">${fmtNum(b.amount)}</td>
+    <td>${b.paid?'<span class="badge ok">پرداخت‌شده</span>':'<span class="badge warn">پرداخت‌نشده</span>'}</td>
+    <td><button class="btn ${b.paid?'btn-ghost':'btn-brand'} btn-sm" data-toggle-paid="${b.id}" data-cur="${b.paid?1:0}" ${canManage?'':'disabled style="opacity:.4"'}>${b.paid?'لغو پرداخت':'ثبت پرداخت'}</button></td>
+  </tr>`).join('');
+  tbody.querySelectorAll('[data-toggle-paid]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    if(currentRole!=='admin') return toast('فقط مدیر سامانه مجاز به ثبت پرداخت است', true);
+    const id = btn.getAttribute('data-toggle-paid'); const cur = btn.getAttribute('data-cur')==='1';
+    await updateDoc(doc(db,'readings', id), {paid: !cur});
+    await logAction(cur?'لغو پرداخت':'ثبت پرداخت', id);
+    toast(cur?'پرداخت لغو شد':'پرداخت ثبت شد');
+  }));
+}
+
+function updateDashboardStats(){
+  const total = consumersCache.length;
+  const {y:cy, m:cm} = currentJalaliYM();
+  const thisMonthReadings = readingsCache.filter(r=>r.jy===cy && r.jm===cm);
+  const doneConsumerIds = new Set(thisMonthReadings.map(r=>r.consumerId));
+  document.getElementById('stat-readings-done').innerHTML = `${fmtNum(doneConsumerIds.size)} <small id="stat-readings-total">/ ${fmtNum(total)}</small>`;
+  document.getElementById('stat-readings-left').textContent = fmtNum(Math.max(0, total - doneConsumerIds.size));
+  const income = thisMonthReadings.filter(r=>r.paid).reduce((s,r)=>s+(r.amount||0),0);
+  document.getElementById('stat-income').textContent = fmtNum(income);
+}
+
 /* ============ LOG MODULE ============ */
 function renderLog(logs){
   const tbody=document.getElementById('log-tbody');
@@ -1028,6 +1274,11 @@ function attachDataListeners(){
     meterTypesCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderMeterTypes();
   }, err=>console.error('meterTypes listener', err));
+
+  unsubReadings = onSnapshot(collection(db,'readings'), snap=>{
+    readingsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderReadings();
+  }, err=>console.error('readings listener', err));
 
   if(currentRole==='admin'){
     const qLog = query(collection(db,'auditLogs'), orderBy('ts','desc'));
