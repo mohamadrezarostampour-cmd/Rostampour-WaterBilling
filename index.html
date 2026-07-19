@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>سامانه جامع مدیریت مشترکین و فروش آب | Rostampour</title>
 <link rel="icon" type="image/png" id="favicon">
+<link rel="apple-touch-icon" id="apple-icon">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A2A43">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rostampour Water">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -411,12 +418,19 @@ tbody tr:hover{background:var(--ice-2);}
       <div class="crumb">سامانه توزیع آب پارس &nbsp;/&nbsp; <b id="crumb-current">داشبورد</b></div>
       <div class="topbar-right">
         <div class="icon-btn" id="btn-theme" title="حالت روشن/تیره">◐</div>
-        <div class="icon-btn" title="اعلان‌ها">🔔</div>
+        <div class="icon-btn" id="btn-notif" title="اعلان‌ها" style="position:relative;">
+          🔔<span id="notif-badge" style="display:none; position:absolute; top:-4px; left:-4px; background:var(--danger); color:#fff; font-size:9px; font-weight:700; border-radius:20px; padding:1px 5px; line-height:1.4;">0</span>
+        </div>
         <div class="user-chip" id="btn-logout" title="خروج از سامانه">
           <div class="av" id="user-av">م</div>
           <div class="info"><b id="user-name">مدیر سامانه</b><span id="user-role">Admin</span></div>
         </div>
       </div>
+    </div>
+
+    <div id="notif-panel" style="display:none; position:fixed; top:74px; left:26px; width:320px; max-height:70vh; overflow-y:auto; background:var(--paper); border:1px solid var(--glass-brd); border-radius:16px; box-shadow:var(--shadow-deep); z-index:250; padding:8px;">
+      <div style="padding:10px 12px; font-weight:700; font-size:13px; border-bottom:1px solid var(--ice-2); margin-bottom:6px;">اعلان‌ها</div>
+      <div id="notif-list"></div>
     </div>
 
     <div class="content">
@@ -503,6 +517,17 @@ tbody tr:hover{background:var(--ice-2);}
             </table>
           </div>
           <div class="empty-state" id="metertypes-empty" style="display:none;"><div class="ic">⚙️</div>هنوز نوع کنتوری تعریف نشده است</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>مسیرهای قرائت</h3><button class="btn btn-brand btn-sm" id="btn-add-route">＋ مسیر جدید</button></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>نام مسیر</th><th>توضیحات / محدوده</th><th>عملیات</th></tr></thead>
+              <tbody id="routes-tbody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="routes-empty" style="display:none;"><div class="ic">🗺️</div>هنوز مسیری تعریف نشده است</div>
         </div>
       </section>
 
@@ -719,6 +744,10 @@ tbody tr:hover{background:var(--ice-2);}
         <div style="font-size:11px; color:var(--sub-text); margin-top:4px;">توجه: «خرید آب» به منزله کنتور تولید/ورودی است، نه مشترک فروش — در گزارش پرت آب به‌عنوان مبنای تولید محاسبه می‌شود.</div>
       </div>
       <div class="field"><label>ظرفیت برداشت (لیتر بر ثانیه)</label><input id="c-capacity" type="number" step="0.01"></div>
+      <div class="field">
+        <label>مسیر قرائت</label>
+        <select id="c-route"><option value="">-- بدون مسیر --</option></select>
+      </div>
       <div class="field"><label>تعرفه پله اول (تومان/م³)</label><input id="c-tariff1" type="number"></div>
       <div class="field"><label>تعرفه پله دوم / جریمه (تومان/م³)</label><input id="c-tariff2" type="number"></div>
       <div class="field">
@@ -788,6 +817,18 @@ tbody tr:hover{background:var(--ice-2);}
   </div>
 </div>
 
+<!-- MODAL: route -->
+<div class="modal-back" id="modal-route">
+  <div class="modal">
+    <div class="modal-head"><h3>مسیر قرائت جدید</h3><div class="x" data-close>✕</div></div>
+    <div class="modal-body">
+      <div class="field full"><label>نام مسیر *</label><input id="rt-name" type="text" placeholder="مثلاً مسیر شماره ۱ - بلوار اصلی"></div>
+      <div class="field full"><label>توضیحات / محدوده</label><input id="rt-notes" type="text"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" data-close>انصراف</button><button class="btn btn-brand" id="btn-save-route">ذخیره مسیر</button></div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script type="module">
@@ -835,7 +876,7 @@ const STATUS_BADGE = {
 
 let currentRole = null; // 'admin' | 'station' | 'guest'
 let currentLabel = "";
-let unsubConsumers=null, unsubTariffs=null, unsubMeterTypes=null, unsubLog=null, unsubReadings=null, unsubPerms=null;
+let unsubConsumers=null, unsubTariffs=null, unsubMeterTypes=null, unsubLog=null, unsubReadings=null, unsubPerms=null, unsubRoutes=null;
 let consumersCache=[], tariffsCache=[], meterTypesCache=[];
 
 /* ---------- logo embed ---------- */
@@ -843,6 +884,14 @@ const LOGO_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAApEAAAKRCAYAAAAM
 document.getElementById('logo-login').src = LOGO_B64;
 document.getElementById('logo-sidebar').src = LOGO_B64;
 document.getElementById('favicon').href = LOGO_B64;
+document.getElementById('apple-icon').href = LOGO_B64;
+
+/* ---------- PWA: service worker registration ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline shell simply unavailable if this fails */ });
+  });
+}
 
 /* ---------- helpers ---------- */
 function toEnDigits(str){ return String(str).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)); }
@@ -955,6 +1004,7 @@ document.getElementById('btn-logout').addEventListener('click', async ()=>{
   if(unsubMeterTypes) unsubMeterTypes(); if(unsubLog) unsubLog();
   if(unsubReadings) unsubReadings();
   if(unsubPerms) unsubPerms();
+  if(unsubRoutes) unsubRoutes();
   await signOut(auth);
   currentRole=null; currentLabel='';
 });
@@ -965,6 +1015,44 @@ document.getElementById('btn-theme').addEventListener('click', ()=>{
   const now = html.getAttribute('data-theme')==='dark' ? '' : 'dark';
   if(now) html.setAttribute('data-theme','dark'); else html.removeAttribute('data-theme');
 });
+
+/* ============ NOTIFICATIONS ============ */
+document.getElementById('btn-notif').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const panel = document.getElementById('notif-panel');
+  panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+});
+document.addEventListener('click', (e)=>{
+  const panel = document.getElementById('notif-panel');
+  if(panel.style.display==='block' && !panel.contains(e.target) && e.target.id!=='btn-notif'){ panel.style.display='none'; }
+});
+function refreshNotifications(){
+  const list = [];
+  if(currentRole==='admin' || currentRole==='station'){
+    const {y:cy,m:cm} = currentJalaliYM();
+    const thisMonth = readingsCache.filter(r=>r.jy===cy && r.jm===cm);
+    const readIds = new Set(thisMonth.map(r=>r.consumerId));
+    const unreadCount = consumersCache.filter(c=>!readIds.has(c.id)).length;
+    if(unreadCount>0) list.push({ icon:'📖', text:`${fmtNum(unreadCount)} مشترک هنوز در این ماه قرائت نشده‌اند`, page:'reading', label:'قرائت کنتور' });
+  }
+  if(currentRole==='admin'){
+    const debtorsCount = readingsCache.filter(r=>!r.closed && r.amount>0 && !r.paid).length;
+    if(debtorsCount>0) list.push({ icon:'💳', text:`${fmtNum(debtorsCount)} صورتحساب پرداخت‌نشده وجود دارد`, page:'reports', label:'گزارشات' });
+  }
+  const badge = document.getElementById('notif-badge');
+  if(list.length){ badge.style.display='block'; badge.textContent = toFaDigits(list.length); }
+  else { badge.style.display='none'; }
+  const listEl = document.getElementById('notif-list');
+  listEl.innerHTML = list.length ? list.map(n=>`
+    <div class="notif-item" data-goto="${n.page}" data-label="${n.label}" style="padding:10px 12px; border-radius:10px; cursor:pointer; font-size:12.5px; display:flex; gap:8px; align-items:flex-start;">
+      <span>${n.icon}</span><span>${n.text}</span>
+    </div>`).join('') : `<div style="padding:20px; text-align:center; color:var(--sub-text); font-size:12.5px;">اعلان جدیدی وجود ندارد</div>`;
+  listEl.querySelectorAll('[data-goto]').forEach(el=>el.addEventListener('click', ()=>{
+    const navItem = document.querySelector(`.nav-item[data-page="${el.dataset.goto}"]`);
+    if(navItem) navItem.click();
+    document.getElementById('notif-panel').style.display='none';
+  }));
+}
 
 /* ============ SIDEBAR / NAV ============ */
 const NAV_STRUCTURE = [
@@ -1027,6 +1115,43 @@ document.querySelectorAll('.modal-back').forEach(mb=>{
   mb.addEventListener('click', (e)=>{ if(e.target===mb) mb.classList.remove('show'); });
 });
 
+/* ============ READING ROUTES MODULE ============ */
+let routesCache = [];
+function populateRouteSelect(){
+  const sel = document.getElementById('c-route');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- بدون مسیر --</option>' + routesCache.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+  sel.value = cur;
+}
+document.getElementById('btn-add-route').addEventListener('click', ()=>{
+  if(currentRole!=='admin'){ toast('فقط مدیر سامانه مجاز است', true); return; }
+  document.getElementById('rt-name').value=''; document.getElementById('rt-notes').value='';
+  document.getElementById('modal-route').classList.add('show');
+});
+document.getElementById('btn-save-route').addEventListener('click', async ()=>{
+  const name = document.getElementById('rt-name').value.trim();
+  if(!name){ toast('نام مسیر الزامی است', true); return; }
+  try{
+    await addDoc(collection(db,'routes'), { name, notes:document.getElementById('rt-notes').value.trim(), createdAt:serverTimestamp() });
+    toast('مسیر ثبت شد');
+    document.getElementById('modal-route').classList.remove('show');
+  }catch(e){ console.error(e); toast('خطا در ذخیره‌سازی', true); }
+});
+function renderRoutes(){
+  const tbody = document.getElementById('routes-tbody');
+  document.getElementById('routes-empty').style.display = routesCache.length? 'none':'block';
+  tbody.innerHTML = routesCache.map(r=>`<tr><td>${r.name}</td><td>${r.notes||'-'}</td>
+    <td><button class="btn btn-danger btn-sm" data-del-route="${r.id}" ${currentRole==='admin'?'':'disabled style="opacity:.4"'}>حذف</button></td></tr>`).join('');
+  tbody.querySelectorAll('[data-del-route]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(currentRole!=='admin') return toast('فقط مدیر سامانه مجاز است', true);
+    if(!confirm('آیا از حذف این مسیر مطمئن هستید؟')) return;
+    await deleteDoc(doc(db,'routes', b.getAttribute('data-del-route')));
+    toast('مسیر حذف شد');
+  }));
+  populateRouteSelect();
+  populateConsumerSelect();
+}
+
 /* ============ CONSUMERS MODULE ============ */
 let editingConsumerId = null;
 document.getElementById('btn-add-consumer').addEventListener('click', ()=>{
@@ -1035,6 +1160,7 @@ document.getElementById('btn-add-consumer').addEventListener('click', ()=>{
   document.getElementById('consumer-modal-title').textContent='ثبت مشترک جدید';
   ['c-code','c-name','c-capacity','c-tariff1','c-tariff2','c-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('c-group').value='buy'; document.getElementById('c-status').value='active';
+  populateRouteSelect(); document.getElementById('c-route').value='';
   document.getElementById('modal-consumer').classList.add('show');
 });
 
@@ -1046,6 +1172,7 @@ document.getElementById('btn-save-consumer').addEventListener('click', async ()=
     code, name,
     group: document.getElementById('c-group').value,
     capacity: parseFloat(document.getElementById('c-capacity').value)||0,
+    routeId: document.getElementById('c-route').value || null,
     tariff1: parseFloat(document.getElementById('c-tariff1').value)||0,
     tariff2: parseFloat(document.getElementById('c-tariff2').value)||0,
     status: document.getElementById('c-status').value,
@@ -1097,6 +1224,7 @@ function renderConsumers(){
   tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>deleteConsumer(b.dataset.del)));
   document.getElementById('stat-consumers').textContent = fmtNum(consumersCache.length);
   if(typeof updateDashboardStats==='function') updateDashboardStats();
+  if(typeof refreshNotifications==='function') refreshNotifications();
 }
 function openEditConsumer(id){
   if(currentRole!=='admin'){ toast('فقط مدیر سامانه مجاز به ویرایش است', true); return; }
@@ -1107,6 +1235,7 @@ function openEditConsumer(id){
   document.getElementById('c-name').value=c.name||'';
   document.getElementById('c-group').value=c.group||'buy';
   document.getElementById('c-capacity').value=c.capacity||'';
+  populateRouteSelect(); document.getElementById('c-route').value=c.routeId||'';
   document.getElementById('c-tariff1').value=c.tariff1||'';
   document.getElementById('c-tariff2').value=c.tariff2||'';
   document.getElementById('c-status').value=c.status||'active';
@@ -1362,6 +1491,7 @@ function renderReadings(){
   renderGroupCompareChart();
   renderDebtorsReport();
   renderUnreadReport();
+  refreshNotifications();
 }
 document.getElementById('reading-search').addEventListener('input', renderReadings);
 
@@ -1721,6 +1851,11 @@ function attachDataListeners(){
     meterTypesCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderMeterTypes();
   }, err=>console.error('meterTypes listener', err));
+
+  unsubRoutes = onSnapshot(collection(db,'routes'), snap=>{
+    routesCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderRoutes();
+  }, err=>console.error('routes listener', err));
 
   unsubReadings = onSnapshot(collection(db,'readings'), snap=>{
     readingsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
