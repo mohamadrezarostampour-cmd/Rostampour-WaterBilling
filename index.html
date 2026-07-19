@@ -342,11 +342,24 @@ tbody tr:hover{background:var(--ice-2);}
 .sk{background:linear-gradient(90deg, var(--ice-2) 25%, var(--glass-brd) 37%, var(--ice-2) 63%); background-size:400% 100%; animation:sk 1.4s ease infinite; border-radius:8px;}
 @keyframes sk{0%{background-position:100% 50%;} 100%{background-position:0 50%;}}
 
+.sidebar-backdrop{ display:none; }
 @media(max-width:900px){
-  .sidebar{position:fixed; right:0; transform:translateX(100%); transition:transform .25s ease; box-shadow:var(--shadow-deep);}
+  #btn-mobile-menu{ display:flex !important; }
+  .sidebar{position:fixed; right:0; top:0; z-index:300; transform:translateX(100%); transition:transform .25s ease; box-shadow:var(--shadow-deep);}
   .sidebar.mobile-open{transform:translateX(0);}
+  .sidebar-backdrop{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:290;}
+  .sidebar-backdrop.show{display:block;}
   .content{padding:16px;}
   .modal-body{grid-template-columns:1fr;}
+  .crumb-full{display:none;}
+  .user-chip .info{display:none;}
+  .user-chip{padding:6px;}
+  #notif-panel{ left:12px !important; right:12px !important; width:auto !important; top:66px !important; }
+}
+@media(max-width:480px){
+  .panel-head > div[style*="display:flex"]{flex-wrap:wrap;}
+  .grid-stats{gap:10px;}
+  .stat-card .val{font-size:21px;}
 }
 </style>
 </head>
@@ -376,7 +389,6 @@ tbody tr:hover{background:var(--ice-2);}
       <div class="role-tabs">
         <div class="role-tab active" data-role="admin">مدیر سامانه</div>
         <div class="role-tab" data-role="station">مأمور قرائت</div>
-        <div class="role-tab" data-role="guest">مشاهده‌گر</div>
       </div>
       <div id="fields-userpass">
         <div class="field" style="margin-top:4px;">
@@ -388,12 +400,6 @@ tbody tr:hover{background:var(--ice-2);}
           <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
         </div>
       </div>
-      <div id="fields-guest" style="display:none; margin-top:4px;">
-        <div class="field">
-          <label>کلید دسترسی مشاهده‌گر</label>
-          <input type="password" id="login-guestkey" placeholder="کلید دسترسی را وارد کنید">
-        </div>
-      </div>
       <div class="login-error" id="login-error"></div>
       <button class="btn-primary" id="btn-login">ورود به سامانه</button>
     </div>
@@ -402,6 +408,7 @@ tbody tr:hover{background:var(--ice-2);}
 
 <!-- APP -->
 <div id="app">
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sb-head">
       <img id="logo-sidebar" alt="logo">
@@ -415,8 +422,9 @@ tbody tr:hover{background:var(--ice-2);}
 
   <div class="main-col">
     <div class="topbar">
-      <div class="crumb">سامانه توزیع آب پارس &nbsp;/&nbsp; <b id="crumb-current">داشبورد</b></div>
+      <div class="crumb"><span class="crumb-full">سامانه توزیع آب پارس &nbsp;/&nbsp; </span><b id="crumb-current">داشبورد</b></div>
       <div class="topbar-right">
+        <div class="icon-btn" id="btn-mobile-menu" title="منو" style="display:none;">☰</div>
         <div class="icon-btn" id="btn-theme" title="حالت روشن/تیره">◐</div>
         <div class="icon-btn" id="btn-notif" title="اعلان‌ها" style="position:relative;">
           🔔<span id="notif-badge" style="display:none; position:absolute; top:-4px; left:-4px; background:var(--danger); color:#fff; font-size:9px; font-weight:700; border-radius:20px; padding:1px 5px; line-height:1.4;">0</span>
@@ -443,7 +451,7 @@ tbody tr:hover{background:var(--ice-2);}
           <div class="stat-card"><div class="lbl">تعداد کل مشترکین</div><div class="val mono" id="stat-consumers">۰</div><div class="trend up">👥 در ۶ گروه مصرف</div></div>
           <div class="stat-card"><div class="lbl">قرائت‌های این ماه</div><div class="val mono" id="stat-readings-done">۰ <small id="stat-readings-total">/ ۰</small></div><div class="trend up">📖 پیشرفت قرائت ماهانه</div></div>
           <div class="stat-card"><div class="lbl">قرائت‌های باقی‌مانده</div><div class="val mono" id="stat-readings-left">۰</div><div class="trend down">⏳ نیازمند مراجعه</div></div>
-          <div class="stat-card"><div class="lbl">درآمد ماه جاری (تومان)</div><div class="val mono" id="stat-income">۰</div><div class="trend up">💰 بر اساس محاسبات ثبت‌شده</div></div>
+          <div class="stat-card"><div class="lbl">درآمد ماه جاری (ریال)</div><div class="val mono" id="stat-income">۰</div><div class="trend up">💰 بر اساس محاسبات ثبت‌شده</div></div>
         </div>
         <div class="panel">
           <div class="panel-head"><h3>آخرین فعالیت‌های سامانه</h3></div>
@@ -501,7 +509,7 @@ tbody tr:hover{background:var(--ice-2);}
           <div class="panel-head"><h3>تعرفه‌های فروش آب</h3><button class="btn btn-brand btn-sm" id="btn-add-tariff">＋ تعرفه جدید</button></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>نام تعرفه</th><th>نرخ پله اول (تومان/م³)</th><th>نرخ پله دوم / جریمه (تومان/م³)</th><th>توضیحات</th><th>عملیات</th></tr></thead>
+              <thead><tr><th>نام تعرفه</th><th>نرخ پله اول (ریال/م³)</th><th>نرخ پله دوم / جریمه (ریال/م³)</th><th>توضیحات</th><th>عملیات</th></tr></thead>
               <tbody id="tariffs-tbody"></tbody>
             </table>
           </div>
@@ -549,7 +557,7 @@ tbody tr:hover{background:var(--ice-2);}
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th>کد اشتراک</th><th>نام مشترک</th><th>تاریخ قرائت</th><th>عدد قبلی</th><th>عدد جدید</th><th>مصرف (م³)</th><th>مبلغ (تومان)</th><th>وضعیت</th><th>مأمور</th><th>عملیات</th>
+                <th>کد اشتراک</th><th>نام مشترک</th><th>تاریخ قرائت</th><th>عدد قبلی</th><th>عدد جدید</th><th>مصرف (م³)</th><th>مبلغ (ریال)</th><th>وضعیت</th><th>مأمور</th><th>عملیات</th>
               </tr></thead>
               <tbody id="readings-tbody"></tbody>
             </table>
@@ -574,7 +582,7 @@ tbody tr:hover{background:var(--ice-2);}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>دوره</th><th>مصرف (م³)</th><th>مبلغ (تومان)</th><th>وضعیت پرداخت</th><th>عملیات</th></tr></thead>
+              <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>دوره</th><th>مصرف (م³)</th><th>مبلغ (ریال)</th><th>وضعیت پرداخت</th><th>عملیات</th></tr></thead>
               <tbody id="bills-tbody"></tbody>
             </table>
           </div>
@@ -626,7 +634,7 @@ tbody tr:hover{background:var(--ice-2);}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>دوره</th><th>مبلغ بدهی (تومان)</th></tr></thead>
+              <thead><tr><th>کد اشتراک</th><th>نام مشترک</th><th>دوره</th><th>مبلغ بدهی (ریال)</th></tr></thead>
               <tbody id="debtors-tbody"></tbody>
             </table>
           </div>
@@ -651,10 +659,9 @@ tbody tr:hover{background:var(--ice-2);}
         <div class="page-title">کاربران</div>
         <div class="page-desc">مدیریت کاربران، نقش‌ها و سطوح دسترسی</div>
 
-        <div class="grid-stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="grid-stats" style="grid-template-columns:repeat(2,1fr);">
           <div class="stat-card"><div class="lbl">مدیر سامانه</div><div class="val" style="font-size:15px;">rostampour</div><div class="trend up">دسترسی کامل به همه بخش‌ها</div></div>
           <div class="stat-card"><div class="lbl">مأمور قرائت</div><div class="val" style="font-size:15px;">station</div><div class="trend up">دسترسی طبق تنظیمات زیر</div></div>
-          <div class="stat-card"><div class="lbl">مشاهده‌گر</div><div class="val" style="font-size:15px;">کلید دسترسی</div><div class="trend up">فقط مشاهده داشبورد و مشترکین</div></div>
         </div>
 
         <div class="panel">
@@ -681,16 +688,7 @@ tbody tr:hover{background:var(--ice-2);}
       <!-- SETTINGS -->
       <section class="page" data-page="settings">
         <div class="page-title">تنظیمات</div>
-        <div class="page-desc">تنظیمات کلی سامانه، کلید دسترسی مشاهده‌گر و پشتیبان‌گیری</div>
-
-        <div class="panel">
-          <div class="panel-head"><h3>کلید دسترسی مشاهده‌گر</h3></div>
-          <div class="page-desc" style="margin-bottom:14px;">این کلید بلافاصله پس از ذخیره فعال می‌شود و نیازی به آپلود مجدد فایل روی گیت‌هاب ندارد.</div>
-          <div style="display:flex; gap:10px; max-width:420px;">
-            <input type="text" id="set-guestkey" placeholder="کلید دسترسی جدید" style="flex:1; padding:10px 14px; border-radius:10px; border:1px solid var(--glass-brd); background:var(--ice-2); font-family:inherit;">
-            <button class="btn btn-brand" id="btn-save-guestkey">ذخیره کلید</button>
-          </div>
-        </div>
+        <div class="page-desc">تنظیمات کلی سامانه و پشتیبان‌گیری</div>
 
         <div class="panel">
           <div class="panel-head"><h3>پشتیبان‌گیری و بازیابی اطلاعات</h3></div>
@@ -743,13 +741,13 @@ tbody tr:hover{background:var(--ice-2);}
         </select>
         <div style="font-size:11px; color:var(--sub-text); margin-top:4px;">توجه: «خرید آب» به منزله کنتور تولید/ورودی است، نه مشترک فروش — در گزارش پرت آب به‌عنوان مبنای تولید محاسبه می‌شود.</div>
       </div>
-      <div class="field"><label>ظرفیت برداشت (لیتر بر ثانیه)</label><input id="c-capacity" type="number" step="0.01"></div>
+      <div class="field"><label>ظرفیت مصرف ماهانه (متر مکعب)</label><input id="c-capacity" type="number" step="0.01" placeholder="مثلاً ۳۰"></div>
       <div class="field">
         <label>مسیر قرائت</label>
         <select id="c-route"><option value="">-- بدون مسیر --</option></select>
       </div>
-      <div class="field"><label>تعرفه پله اول (تومان/م³)</label><input id="c-tariff1" type="number"></div>
-      <div class="field"><label>تعرفه پله دوم / جریمه (تومان/م³)</label><input id="c-tariff2" type="number"></div>
+      <div class="field"><label>تعرفه پله اول (ریال/م³)</label><input id="c-tariff1" type="number"></div>
+      <div class="field"><label>تعرفه پله دوم / جریمه (ریال/م³)</label><input id="c-tariff2" type="number"></div>
       <div class="field">
         <label>وضعیت اشتراک</label>
         <select id="c-status"><option value="active">فعال</option><option value="inactive">غیرفعال</option><option value="suspended">معلق</option></select>
@@ -769,8 +767,8 @@ tbody tr:hover{background:var(--ice-2);}
     <div class="modal-head"><h3>تعرفه جدید</h3><div class="x" data-close>✕</div></div>
     <div class="modal-body">
       <div class="field full"><label>نام تعرفه *</label><input id="t-name" type="text"></div>
-      <div class="field"><label>نرخ پله اول (تومان/م³) *</label><input id="t-rate1" type="number"></div>
-      <div class="field"><label>نرخ پله دوم / جریمه (تومان/م³) *</label><input id="t-rate2" type="number"></div>
+      <div class="field"><label>نرخ پله اول (ریال/م³) *</label><input id="t-rate1" type="number"></div>
+      <div class="field"><label>نرخ پله دوم / جریمه (ریال/م³) *</label><input id="t-rate2" type="number"></div>
       <div class="field full"><label>توضیحات</label><input id="t-notes" type="text"></div>
     </div>
     <div class="modal-foot"><button class="btn btn-ghost" data-close>انصراف</button><button class="btn btn-brand" id="btn-save-tariff">ذخیره تعرفه</button></div>
@@ -834,7 +832,7 @@ tbody tr:hover{background:var(--ice-2);}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getAuth, signInWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, onSnapshot,
@@ -863,7 +861,6 @@ const ROLE_MAP = {
   admin:   { email: "rostampour@rostampour-system.local", label: "مدیر سامانه" },
   station: { email: "station@rostampour-system.local",    label: "مأمور قرائت" }
 };
-const GUEST_KEY = "1368"; // کلید ساده دسترسی مشاهده‌گر (فقط خواندنی)
 
 const GROUP_LABELS = {
   buy:"خرید آب (تولید / ورودی)", org:"مصرف سازمان", green:"مصرف فضای سبز",
@@ -874,7 +871,7 @@ const STATUS_BADGE = {
   active:{t:"فعال", c:"ok"}, inactive:{t:"غیرفعال", c:"danger"}, suspended:{t:"معلق", c:"warn"}
 };
 
-let currentRole = null; // 'admin' | 'station' | 'guest'
+let currentRole = null; // 'admin' | 'station'
 let currentLabel = "";
 let unsubConsumers=null, unsubTariffs=null, unsubMeterTypes=null, unsubLog=null, unsubReadings=null, unsubPerms=null, unsubRoutes=null;
 let consumersCache=[], tariffsCache=[], meterTypesCache=[];
@@ -921,9 +918,6 @@ roleTabs.forEach(tab=>{
   tab.addEventListener('click', ()=>{
     roleTabs.forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    const role = tab.dataset.role;
-    document.getElementById('fields-userpass').style.display = role==='guest' ? 'none' : 'block';
-    document.getElementById('fields-guest').style.display = role==='guest' ? 'block' : 'none';
     document.getElementById('login-error').textContent='';
   });
 });
@@ -933,30 +927,13 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
   const errEl = document.getElementById('login-error');
   errEl.textContent='';
   try{
-    if(role==='guest'){
-      const key = toEnDigits(document.getElementById('login-guestkey').value.trim());
-      if(!key){ errEl.textContent='کلید دسترسی را وارد کنید'; return; }
-      await signInAnonymously(auth);
-      let validKey = GUEST_KEY;
-      try{
-        const snap = await getDoc(doc(db,'settings','general'));
-        if(snap.exists() && snap.data().guestKey) validKey = snap.data().guestKey;
-      }catch(e){ /* fall back to default key on read failure */ }
-      if(key !== validKey){
-        await signOut(auth);
-        errEl.textContent='کلید دسترسی نامعتبر است';
-        return;
-      }
-      currentRole='guest'; currentLabel='مشاهده‌گر';
-    } else {
-      const uname = toEnDigits(document.getElementById('login-username').value.trim());
-      const pass  = toEnDigits(document.getElementById('login-password').value.trim());
-      const expectedUser = role==='admin' ? 'rostampour' : 'station';
-      if(uname !== expectedUser){ errEl.textContent='نام کاربری با نقش انتخابی مطابقت ندارد'; return; }
-      const email = ROLE_MAP[role].email;
-      await signInWithEmailAndPassword(auth, email, pass);
-      currentRole=role; currentLabel=ROLE_MAP[role].label;
-    }
+    const uname = toEnDigits(document.getElementById('login-username').value.trim());
+    const pass  = toEnDigits(document.getElementById('login-password').value.trim());
+    const expectedUser = role==='admin' ? 'rostampour' : 'station';
+    if(uname !== expectedUser){ errEl.textContent='نام کاربری با نقش انتخابی مطابقت ندارد'; return; }
+    const email = ROLE_MAP[role].email;
+    await signInWithEmailAndPassword(auth, email, pass);
+    currentRole=role; currentLabel=ROLE_MAP[role].label;
   }catch(e){
     console.error(e);
     errEl.textContent='ورود ناموفق بود — نام کاربری یا رمز عبور را بررسی کنید';
@@ -967,9 +944,8 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
 onAuthStateChanged(auth, (user)=>{
   if(user){
     if(!currentRole){ // page refresh with existing session - default best guess
-      currentRole = user.isAnonymous ? 'guest' : 'admin';
-      currentLabel = user.isAnonymous ? 'مشاهده‌گر' : (ROLE_MAP.admin.email===user.email? ROLE_MAP.admin.label : ROLE_MAP.station.label);
-      if(!user.isAnonymous){ currentRole = (user.email===ROLE_MAP.station.email) ? 'station' : 'admin'; }
+      currentRole = (user.email===ROLE_MAP.station.email) ? 'station' : 'admin';
+      currentLabel = (currentRole==='station') ? ROLE_MAP.station.label : ROLE_MAP.admin.label;
     }
     enterApp();
   } else {
@@ -987,19 +963,18 @@ function enterApp(){
   applyRolePermissions();
   buildSidebar();
   attachDataListeners();
-  if(currentRole!=='guest') logAction('ورود به سامانه', '-');
+  logAction('ورود به سامانه', '-');
 }
 
 function applyRolePermissions(){
-  // station: no reports, no create/delete consumers or tariffs
-  // guest: fully read-only, no nav items beyond dashboard/consumers view
+  // station: no reports/finance unless granted via permission toggle; no create/delete consumers or tariffs
   document.body.dataset.role = currentRole;
 }
 
 /* ============ LOGOUT ============ */
 document.getElementById('btn-logout').addEventListener('click', async ()=>{
   if(!confirm('آیا از سامانه خارج می‌شوید؟')) return;
-  if(currentRole!=='guest') await logAction('خروج از سامانه','-');
+  await logAction('خروج از سامانه','-');
   if(unsubConsumers) unsubConsumers(); if(unsubTariffs) unsubTariffs();
   if(unsubMeterTypes) unsubMeterTypes(); if(unsubLog) unsubLog();
   if(unsubReadings) unsubReadings();
@@ -1057,10 +1032,10 @@ function refreshNotifications(){
 /* ============ SIDEBAR / NAV ============ */
 const NAV_STRUCTURE = [
   { group:'اصلی', items:[
-    {id:'dashboard', ic:'📊', label:'داشبورد', roles:['admin','station','guest']},
+    {id:'dashboard', ic:'📊', label:'داشبورد', roles:['admin','station']},
   ]},
   { group:'عملیات', items:[
-    {id:'consumers', ic:'👥', label:'مدیریت مشترکین', roles:['admin','station','guest']},
+    {id:'consumers', ic:'👥', label:'مدیریت مشترکین', roles:['admin','station']},
     {id:'reading', ic:'📖', label:'قرائت کنتور', roles:['admin','station']},
     {id:'finance', ic:'💳', label:'مالی', roles:['admin']},
   ]},
@@ -1098,13 +1073,24 @@ function navigateTo(pageId, label){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===pageId));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active', p.dataset.page===pageId));
   document.getElementById('crumb-current').textContent = label;
-  if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('mobile-open');
+  if(window.innerWidth<=900){
+    document.getElementById('sidebar').classList.remove('mobile-open');
+    document.getElementById('sidebar-backdrop').classList.remove('show');
+  }
   if(pageId==='reports'){
     setTimeout(()=>{ renderMonthlyTrendChart(); renderGroupCompareChart(); }, 50);
   }
 }
 document.getElementById('sb-collapse-btn').addEventListener('click', ()=>{
   document.getElementById('sidebar').classList.toggle('collapsed');
+});
+document.getElementById('btn-mobile-menu').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('sidebar-backdrop').classList.add('show');
+});
+document.getElementById('sidebar-backdrop').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
 });
 
 /* ============ MODAL HELPERS ============ */
@@ -1210,7 +1196,7 @@ function renderConsumers(){
       <td class="mono">${c.code||''}</td>
       <td>${c.name||''}</td>
       <td>${GROUP_LABELS[c.group]||c.group||''}</td>
-      <td class="mono">${fmtNum(c.capacity)} لیت/ث</td>
+      <td class="mono">${fmtNum(c.capacity)} م³/ماه</td>
       <td class="mono">${fmtNum(c.tariff1)}</td>
       <td class="mono">${fmtNum(c.tariff2)}</td>
       <td><span class="badge ${st.c}">${st.t}</span></td>
@@ -1333,8 +1319,8 @@ function renderMeterTypes(){
 
 /* ============ JALALI DATE HELPERS ============
    از تقویم فارسی داخلی مرورگر (Intl) برای تبدیل دقیق میلادی به جلالی استفاده می‌شود.
-   محاسبه «روزهای سپری‌شده بین دو قرائت» برای تعیین سقف پله اول مصرف، از یک شمارش
-   تقریبی روزهای جلالی استفاده می‌کند که برای این منظور دقت کافی دارد.
+   jalaliSerial برای مرتب‌سازی قرائت‌ها بر اساس تاریخ (یافتن آخرین قرائت هر مشترک) استفاده می‌شود.
+   ظرفیت مصرف ماهانه هر مشترک یک عدد ثابت (متر مکعب) است و بر اساس روزهای سپری‌شده تناسب‌گیری نمی‌شود.
 */
 function todayJalaliStr(){
   const fmt = new Intl.DateTimeFormat('en-US-u-ca-persian', {year:'numeric', month:'2-digit', day:'2-digit'});
@@ -1411,7 +1397,7 @@ function computeReadingCalc(){
     return { consumer, dateParts, periodSerial, prev, neu:prev, consumption:0, allowedVolume:0, amount:0, closed:true, daysElapsed };
   }
   const consumption = Math.max(0, neu - prev);
-  const allowedVolume = (parseFloat(consumer.capacity)||0) * 86400 * daysElapsed / 1000; // م³
+  const allowedVolume = parseFloat(consumer.capacity)||0; // ظرفیت مصرف ماهانه مجاز، مستقیماً به متر مکعب
   const tier1Vol = Math.min(consumption, allowedVolume);
   const tier2Vol = Math.max(0, consumption - allowedVolume);
   const amount = tier1Vol*(parseFloat(consumer.tariff1)||0) + tier2Vol*(parseFloat(consumer.tariff2)||0);
@@ -1426,8 +1412,8 @@ function updateReadingPreview(){
     box.innerHTML = `⚠️ این دوره به‌عنوان <b>تعطیل/خراب</b> ثبت می‌شود — بدون محاسبه مصرف و مبلغ (برای گزارش جداگانه لحاظ می‌شود).`;
   } else {
     box.innerHTML = `مصرف محاسبه‌شده: <b class="mono">${fmtNum(r.consumption.toFixed(2))}</b> متر مکعب
-      &nbsp;|&nbsp; سقف پله اول (بر اساس ${fmtNum(r.daysElapsed)} روز): <b class="mono">${fmtNum(r.allowedVolume.toFixed(2))}</b> م³
-      &nbsp;|&nbsp; مبلغ قابل پرداخت: <b class="mono">${fmtNum(Math.round(r.amount))}</b> تومان`;
+      &nbsp;|&nbsp; ظرفیت مصرف ماهانه (پله اول): <b class="mono">${fmtNum(r.allowedVolume.toFixed(2))}</b> م³
+      &nbsp;|&nbsp; مبلغ قابل پرداخت: <b class="mono">${fmtNum(Math.round(r.amount))}</b> ریال`;
   }
 }
 document.getElementById('btn-save-reading').addEventListener('click', async ()=>{
@@ -1555,7 +1541,7 @@ function printInvoice(bill){
       <tr><th>مصرف</th><td>${fmtNum(bill.consumption)} متر مکعب</td></tr>
       <tr><th>وضعیت پرداخت</th><td>${bill.paid?'پرداخت‌شده':'پرداخت‌نشده'}</td></tr>
     </table>
-    <div class="total">مبلغ قابل پرداخت: ${fmtNum(bill.amount)} تومان</div>
+    <div class="total">مبلغ قابل پرداخت: ${fmtNum(bill.amount)} ریال</div>
     <div class="foot">طراح و توسعه‌دهنده: محمدرضا رستم پور</div>
     <script>window.print();<\/script>
     </body></html>`);
@@ -1766,19 +1752,6 @@ function renderUnreadReport(){
     <td><span class="badge ${r.cls}">${r.status}</span></td>
   </tr>`).join('');
 }
-
-/* ============ SETTINGS: guest key (dynamic, no redeploy needed) ============ */
-let generalSettings = { guestKey: '1368' };
-document.getElementById('btn-save-guestkey').addEventListener('click', async ()=>{
-  const key = toEnDigits(document.getElementById('set-guestkey').value.trim());
-  if(!key){ toast('کلید نمی‌تواند خالی باشد', true); return; }
-  try{
-    await setDoc(doc(db,'settings','general'), { guestKey:key }, {merge:true});
-    await logAction('تغییر کلید دسترسی مشاهده‌گر', '-');
-    toast('کلید دسترسی مشاهده‌گر ذخیره شد');
-    document.getElementById('set-guestkey').value='';
-  }catch(e){ console.error(e); toast('خطا در ذخیره کلید', true); }
-});
 
 /* ============ SETTINGS: backup / restore ============ */
 const BACKUP_COLLECTIONS = ['consumers','tariffs','meterTypes','readings','auditLogs'];
