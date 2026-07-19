@@ -959,7 +959,7 @@ document.getElementById('btn-login').addEventListener('click', async ()=>{
     }
   }catch(e){
     console.error(e);
-    errEl.textContent='ورود ناموفق بود — نام کاربری یا رمز عبور را بررسی کنید';
+    errEl.textContent = `خطا: ${e.code || ''} — ${e.message || 'ورود ناموفق بود'}`;
   }
 });
 
